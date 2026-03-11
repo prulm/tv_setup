@@ -3,156 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <title>TV Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
         body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #0f172a;
-            color: white;
-            overflow: hidden;
+            margin: 0; font-family: Arial, sans-serif;
+            background: #0f172a; color: white; overflow: hidden;
         }
-
         .header {
-            background: #1e293b;
-            padding: 20px;
-            font-size: 42px;
-            text-align: center;
-            font-weight: bold;
-            border-bottom: 4px solid #334155;
-            position: relative;
-            z-index: 10;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background: #1e293b; padding: 20px; font-size: 42px;
+            text-align: center; font-weight: bold; border-bottom: 4px solid #334155;
+            display: flex; justify-content: center; align-items: center;
         }
-
-        #content {
-            padding: 10px;
-            height: 85vh; 
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-
+        #content { padding: 10px; height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
         body.fullscreen-mode .header { display: none; }
         body.fullscreen-mode #content { height: 100vh; padding: 0; }
-
-        #scroll-container {
-            width: 100%;
-            height: 100%;
-            overflow-y: hidden; 
-            display: flex;
-            flex-direction: column;
-        }
-
-        table {
-            width: 100%;
-            height: 100%;
-            border-collapse: collapse;
-            background: #1e293b;
-            table-layout: fixed; 
-        }
-
-        th {
-            background: #334155;
-            padding: 15px;
-            font-size: 45px;
-            border: 2px solid #475569;
-            position: sticky;
-            top: 0;
-            z-index: 5;
-        }
-
-        td {
-            padding: 20px;
-            text-align: center;
-            border: 2px solid #475569;
-            font-size: 55px;
-            word-wrap: break-word;
-            line-height: 1.3;
-        }
-
-        /* Status Colors */
-        .gate-0 { background: #059669; } /* Green */
-        .gate-1 { background: #10b981; } /* Light Green */
-        .gate-2 { background: #f59e0b; } /* Orange/Amber */
-        .gate-3 { background: #ea580c; } /* Deep Orange */
-        .gate-4 { background: #dc2626; } /* Red */
-        .status-default { background: #b45309; color: white; }
-
-        @keyframes kenburns {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.5); }
-        }
-
-        .img-et-container {
-            height: 100vh;
-            width: 100vw;
-            background: black;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-        }
-
-        .img-et-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            animation: kenburns 30s linear forwards;
-        }
+        #scroll-container { width: 100%; height: 100%; overflow-y: hidden; display: flex; flex-direction: column; }
+        table { width: 100%; height: 100%; border-collapse: collapse; background: #1e293b; table-layout: fixed; }
+        th { background: #334155; padding: 15px; font-size: 45px; border: 2px solid #475569; position: sticky; top: 0; }
+        td { padding: 20px; text-align: center; border: 2px solid #475569; font-size: 55px; word-wrap: break-word; line-height: 1.3; }
+        .gate-0 { background: #059669; } .gate-1 { background: #10b981; }
+        .gate-2 { background: #f59e0b; } .gate-3 { background: #ea580c; }
+        .gate-4 { background: #dc2626; } .status-default { background: #b45309; }
+        @keyframes kenburns { 0% { transform: scale(1); } 100% { transform: scale(1.5); } }
+        .img-et-container { height: 100vh; width: 100vw; background: black; overflow: hidden; display: flex; justify-content: center; }
+        .img-et-container img { width: 100%; height: 100%; object-fit: contain; animation: kenburns 30s linear forwards; }
+        #video-msg { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:black; z-index:9999; justify-content:center; align-items:center; font-size:50px; text-align:center; }
     </style>
 </head>
 <body>
 
+<div id="video-msg">📺 VIDEO MODE ACTIVE<br><span style="font-size:30px">Opening Documentary...</span></div>
+
 <div id="displaySection">
-    <div class="header" id="header-container">
-        <span id="title">Loading Dashboard...</span>
-    </div>
-    <div id="content">
-        <div id="scroll-container"></div>
-    </div>
+    <div class="header" id="header-container"><span id="title">Initializing...</span></div>
+    <div id="content"><div id="scroll-container"></div></div>
 </div>
 
 <script>
 /* --- CONFIGURATION --- */
-const FILE_NAME = "assignments.xlsx"; 
+// PASTE YOUR RAW GITHUB URL BELOW
+const FILE_NAME = "https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/assignments.xlsx"; 
+
 const OTHER_DISPLAY_TIME = 12000; 
 const ET_IMAGE_TIME = 30000; 
 const COLS_PER_PAGE = 5; 
 const SCROLL_SPEED = 3.5; 
 const EDGE_PAUSE_MS = 2000; 
+const VIDEO_URL = "https://ihavenotv.com/the-giants-of-the-sky-the-amazing-world-of-aviation";
 
 const IMAGE_LIST = ["notice0.png", "notice1.png"];
 const IMAGE_LIST_2 = ["img1.jpg", "img2.jpg", "img3.jpg"];
 
 /* --- GLOBALS --- */
-let workbook;
-let displays = [];
-let currentDisplay = 0;
-let currentEtImageIndex = 0; 
-let rotationTimeout;
-let scrollInterval;
-let isTransitioning = false;
+let workbook; let displays = []; let currentDisplay = 0;
+let currentEtImageIndex = 0; let rotationTimeout; let scrollInterval;
+let isVideoActive = false; let videoWindow = null;
 
-window.onload = loadExcel;
+window.onload = () => {
+    loadExcel();
+    setInterval(checkVideoSchedule, 30000); // Check schedule every 30s
+};
+
+function checkVideoSchedule() {
+    const now = new Date();
+    const timeVal = now.getHours() + (now.getMinutes() / 60);
+
+    // 9:30-10, 12:30-1:30, 3:30-10:00 (15.5 to 22.0)
+    const shouldShowVideo = (timeVal >= 9.5 && timeVal < 10) || 
+                            (timeVal >= 12.5 && timeVal < 13.5) || 
+                            (timeVal >= 15.5 && timeVal < 22);
+
+    if (shouldShowVideo && !isVideoActive) {
+        isVideoActive = true;
+        document.getElementById('video-msg').style.display = 'flex';
+        videoWindow = window.open(VIDEO_URL, '_blank');
+        if (rotationTimeout) clearTimeout(rotationTimeout);
+        if (scrollInterval) clearInterval(scrollInterval);
+    } else if (!shouldShowVideo && isVideoActive) {
+        isVideoActive = false;
+        document.getElementById('video-msg').style.display = 'none';
+        if (videoWindow) videoWindow.close();
+        loadExcel();
+    }
+}
 
 async function loadExcel() {
+    if (isVideoActive) return;
     try {
+        // Cache busting is critical for GitHub hosting
         const response = await fetch(`${FILE_NAME}?t=${new Date().getTime()}`);
-        if (!response.ok) throw new Error("File not found");
+        if (!response.ok) throw new Error("GitHub File Not Accessible");
         const data = await response.arrayBuffer();
         workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
         buildDisplayList();
-        
-        // After loading/re-loading, start from the beginning
-        currentDisplay = 0; 
+        currentDisplay = 0;
         startRotation();
     } catch (err) {
-        document.getElementById("title").innerText = "File Error / Searching File...";
-        // If file fails, try again in 10 seconds
+        document.getElementById("title").innerText = "GitHub Load Error. Retrying...";
         setTimeout(loadExcel, 10000);
     }
 }
@@ -163,31 +111,23 @@ function buildDisplayList() {
         const sheet = workbook.Sheets[name];
         const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
         const lowerName = name.toLowerCase().trim();
-
         if (lowerName === "shop visit status") {
             const headers = Object.keys(rows[0] || {});
             const modelCol = detectColumn(headers, ["model", "type", "engine"]) || headers[0];
             const uniqueModels = [...new Set(rows.map(r => r[modelCol]))].filter(m => m);
             const totalPages = Math.ceil(uniqueModels.length / COLS_PER_PAGE);
-            
             for (let i = 0; i < uniqueModels.length; i += COLS_PER_PAGE) {
                 newDisplays.push({ 
-                    type: "sheet", 
-                    name: name, 
-                    isConventional: false, 
-                    isScroller: true, 
+                    type: "sheet", name: name, isConventional: false, isScroller: true, 
                     models: uniqueModels.slice(i, i + COLS_PER_PAGE),
-                    currentPage: Math.floor(i / COLS_PER_PAGE) + 1,
-                    totalPages: totalPages
+                    currentPage: Math.floor(i / COLS_PER_PAGE) + 1, totalPages: totalPages
                 });
             }
         } else {
             newDisplays.push({ type: "sheet", name: name, isConventional: true, isScroller: false });
         }
     });
-    newDisplays.push({ type: "image" });      
-    newDisplays.push({ type: "imageEt" }); 
-    newDisplays.push({ type: "notification" });
+    newDisplays.push({ type: "image" }, { type: "imageEt" }, { type: "notification" });
     displays = newDisplays;
 }
 
@@ -206,55 +146,40 @@ function showSheet(displayObj) {
     document.body.classList.remove("fullscreen-mode");
     const sheet = workbook.Sheets[displayObj.name];
     let allRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-    
-    let pageSuffix = displayObj.totalPages > 1 ? ` (${displayObj.currentPage}/${displayObj.totalPages})` : "";
-    document.getElementById("title").innerText = displayObj.name + pageSuffix;
-
+    document.getElementById("title").innerText = displayObj.name + (displayObj.totalPages > 1 ? ` (${displayObj.currentPage}/${displayObj.totalPages})` : "");
     const headers = Object.keys(allRows[0] || {});
     let html = "<table>";
-
     if (displayObj.isConventional) {
         html += "<tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr>";
-        allRows.forEach(row => {
-            html += "<tr>" + headers.map(h => `<td>${row[h]}</td>`).join("") + "</tr>";
-        });
+        allRows.forEach(row => { html += "<tr>" + headers.map(h => `<td>${row[h]}</td>`).join("") + "</tr>"; });
     } else {
         const modelCol = detectColumn(headers, ["model", "type", "engine"]) || headers[0];
         const snCol = detectColumn(headers, ["sn", "serial", "esn"]) || headers[1];
         const statusCol = detectColumn(headers, ["status", "state"]);
         const engineerCol = detectColumn(headers, ["assigned", "person", "engineer"]);
-
         const peopleMap = {};
         displayObj.models.forEach(m => peopleMap[m] = []);
-
         allRows.forEach(r => {
             const model = r[modelCol];
             if (displayObj.models.includes(model)) {
                 const status = statusCol ? String(r[statusCol]) : "";
                 if (status.toLowerCase() === "complete") return;
-                peopleMap[model].push({
-                    text: `<b>${r[snCol] || ""}</b><br>${r[engineerCol] || ""}<br><small>${status}</small>`,
-                    status: status
-                });
+                peopleMap[model].push({ text: `<b>${r[snCol] || ""}</b><br>${r[engineerCol] || ""}<br><small>${status}</small>`, status: status });
             }
         });
-
         html += "<tr>" + displayObj.models.map(m => `<th>${m}</th>`).join("") + "</tr>";
         const maxRows = Math.max(...displayObj.models.map(m => peopleMap[m].length), 0);
         for (let i = 0; i < maxRows; i++) {
             html += "<tr>";
             displayObj.models.forEach(m => {
                 const item = peopleMap[m][i];
-                const cls = item ? getStatusClass(item.status) : "";
-                html += `<td class="${cls}">${item ? item.text : ""}</td>`;
+                html += `<td class="${item ? getStatusClass(item.status) : ""}">${item ? item.text : ""}</td>`;
             });
             html += "</tr>";
         }
     }
-    html += "</table>";
     const container = document.getElementById("scroll-container");
-    container.innerHTML = html;
-    
+    container.innerHTML = html + "</table>";
     if (displayObj.isScroller) initAutoScroll(container);
 }
 
@@ -262,33 +187,25 @@ function initAutoScroll(container) {
     if (scrollInterval) clearInterval(scrollInterval);
     container.scrollTop = 0;
     let direction = 1; let hasReachedBottom = false; let isPaused = true; 
-    setTimeout(() => { isPaused = false; }, EDGE_PAUSE_MS);
-
+    setTimeout(() => isPaused = false, EDGE_PAUSE_MS);
     scrollInterval = setInterval(() => {
         if (isPaused) return;
         const maxScroll = container.scrollHeight - container.clientHeight;
-        if (maxScroll <= 15) {
-            clearInterval(scrollInterval);
-            setTimeout(nextSlide, EDGE_PAUSE_MS);
-            return;
-        }
+        if (maxScroll <= 15) { clearInterval(scrollInterval); setTimeout(nextSlide, EDGE_PAUSE_MS); return; }
         container.scrollTop += (SCROLL_SPEED * direction);
         if (direction === 1 && container.scrollTop >= maxScroll - 1) {
             isPaused = true; direction = -1; hasReachedBottom = true;
-            setTimeout(() => { isPaused = false; }, EDGE_PAUSE_MS);
+            setTimeout(() => isPaused = false, EDGE_PAUSE_MS);
         }
         if (hasReachedBottom && direction === -1 && container.scrollTop <= 0) {
-            isPaused = true; clearInterval(scrollInterval);
-            setTimeout(nextSlide, EDGE_PAUSE_MS);
+            isPaused = true; clearInterval(scrollInterval); setTimeout(nextSlide, EDGE_PAUSE_MS);
         }
     }, 30);
 }
 
 function showImageEt() {
     document.body.classList.add("fullscreen-mode");
-    const imgPath = IMAGE_LIST_2[currentEtImageIndex];
-    document.getElementById("scroll-container").innerHTML = `<div class="img-et-container"><img src="${imgPath}"></div>`;
-
+    document.getElementById("scroll-container").innerHTML = `<div class="img-et-container"><img src="${IMAGE_LIST_2[currentEtImageIndex]}"></div>`;
     currentEtImageIndex = (currentEtImageIndex + 1) % IMAGE_LIST_2.length;
     rotationTimeout = setTimeout(nextSlide, ET_IMAGE_TIME);
 }
@@ -296,60 +213,34 @@ function showImageEt() {
 function showImage() {
     document.body.classList.remove("fullscreen-mode");
     document.getElementById("title").innerText = "Maintenance Service Letters";
-    document.getElementById("scroll-container").innerHTML = `
-        <div style="display:flex; height:100%; justify-content:center; align-items:center; gap:20px;">
-            <img src="${IMAGE_LIST[0]}" style="max-height:95%; border-radius:10px;">
-            <img src="${IMAGE_LIST[1]}" style="max-height:95%; border-radius:10px;">
-        </div>`;
+    document.getElementById("scroll-container").innerHTML = `<div style="display:flex; height:100%; justify-content:center; align-items:center; gap:20px;"><img src="${IMAGE_LIST[0]}" style="max-height:95%;"><img src="${IMAGE_LIST[1]}" style="max-height:95%;"></div>`;
     rotationTimeout = setTimeout(nextSlide, OTHER_DISPLAY_TIME);
 }
 
 function showNotification() {
     document.body.classList.remove("fullscreen-mode");
     document.getElementById("title").innerText = "Notifications";
-    document.getElementById("scroll-container").innerHTML = `
-        <div style="height:100%; display:flex; justify-content:center; align-items:center; font-size:50px;">
-            <ul style="list-style:none;padding:0;text-align:center;">
-                <li><h1>📢 Update Status Regularly</h1></li>
-                <li><h1>📢 Crew meeting at 4 PM</h1></li>
-            </ul>
-        </div>`;
+    document.getElementById("scroll-container").innerHTML = `<div style="height:100%; display:flex; justify-content:center; align-items:center; font-size:50px;"><ul style="list-style:none;padding:0;text-align:center;"><li><h1>📢 Update Status Regularly</h1></li><li><h1>📢 Crew meeting at 4 PM</h1></li></ul></div>`;
     rotationTimeout = setTimeout(nextSlide, OTHER_DISPLAY_TIME);
 }
 
 function startRotation() {
-    isTransitioning = false;
+    if (isVideoActive) return;
     const d = displays[currentDisplay];
     if (!d) return;
-
-    if (d.type === "sheet") {
-        showSheet(d);
-        if (!d.isScroller) rotationTimeout = setTimeout(nextSlide, OTHER_DISPLAY_TIME);
-    } else if (d.type === "image") {
-        showImage();
-    } else if (d.type === "imageEt") {
-        showImageEt();
-    } else if (d.type === "notification") {
-        showNotification();
-    }
+    if (d.type === "sheet") { showSheet(d); if (!d.isScroller) rotationTimeout = setTimeout(nextSlide, OTHER_DISPLAY_TIME); }
+    else if (d.type === "image") showImage();
+    else if (d.type === "imageEt") showImageEt();
+    else if (d.type === "notification") showNotification();
 }
 
 function nextSlide() {
-    if (isTransitioning) return;
-    isTransitioning = true;
+    if (isVideoActive) return;
     if (rotationTimeout) clearTimeout(rotationTimeout);
     if (scrollInterval) clearInterval(scrollInterval);
-
-    let nextIndex = currentDisplay + 1;
-    
-    // Check if we have finished all slides
-    if (nextIndex >= displays.length) {
-        // RESET: Load Excel fresh before starting the next loop
-        loadExcel();
-    } else {
-        currentDisplay = nextIndex;
-        startRotation();
-    }
+    currentDisplay++;
+    if (currentDisplay >= displays.length) loadExcel();
+    else startRotation();
 }
 
 function detectColumn(headers, options) {
@@ -362,5 +253,3 @@ function detectColumn(headers, options) {
 </script>
 </body>
 </html>
-
-

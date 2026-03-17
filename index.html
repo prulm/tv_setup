@@ -7,72 +7,43 @@
 
     <style>
         body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #0f172a;
-            color: white;
-            overflow: hidden;
+            margin: 0; font-family: Arial, sans-serif;
+            background: #0f172a; color: white; overflow: hidden;
         }
 
         .header {
-            background: #1e293b;
-            padding: 20px;
-            font-size: 42px;
-            text-align: center;
-            font-weight: bold;
-            border-bottom: 4px solid #334155;
-            position: relative;
-            z-index: 10;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background: #1e293b; padding: 20px; font-size: 42px;
+            text-align: center; font-weight: bold; border-bottom: 4px solid #334155;
+            position: relative; z-index: 10; display: flex;
+            justify-content: center; align-items: center;
         }
 
         #content {
-            padding: 10px;
-            height: 85vh; 
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            transition: all 0.3s ease;
+            padding: 10px; height: 85vh; display: flex;
+            flex-direction: column; overflow: hidden; transition: all 0.3s ease;
         }
 
         body.fullscreen-mode .header { display: none; }
         body.fullscreen-mode #content { height: 100vh; padding: 0; }
 
         #scroll-container {
-            width: 100%;
-            height: 100%;
-            overflow-y: hidden; 
-            display: flex;
-            flex-direction: column;
+            width: 100%; height: 100%; overflow-y: hidden; 
+            display: flex; flex-direction: column;
         }
 
         table {
-            width: 100%;
-            height: 100%;
-            border-collapse: collapse;
-            background: #1e293b;
-            table-layout: fixed; 
+            width: 100%; height: 100%; border-collapse: collapse;
+            background: #1e293b; table-layout: fixed; 
         }
 
         th {
-            background: #334155;
-            padding: 15px;
-            font-size: 45px;
-            border: 2px solid #475569;
-            position: sticky;
-            top: 0;
-            z-index: 5;
+            background: #334155; padding: 15px; font-size: 45px;
+            border: 2px solid #475569; position: sticky; top: 0; z-index: 5;
         }
 
         td {
-            padding: 20px;
-            text-align: center;
-            border: 2px solid #475569;
-            font-size: 55px;
-            word-wrap: break-word;
-            line-height: 1.3;
+            padding: 20px; text-align: center; border: 2px solid #475569;
+            font-size: 55px; word-wrap: break-word; line-height: 1.3;
         }
 
         /* Status Colors */
@@ -89,30 +60,20 @@
         }
 
         .img-et-container {
-            height: 100vh;
-            width: 100vw;
-            background: black;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
+            height: 100vh; width: 100vw; background: black;
+            overflow: hidden; display: flex; justify-content: center;
         }
 
         .img-et-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
+            width: 100%; height: 100%; object-fit: contain;
             animation: kenburns 30s linear forwards;
         }
 
-        /* Podcast Banner */
+        /* Podcast Banner Overlay */
         #podcast-status {
-            display: none;
-            background: #4f46e5;
-            color: white;
-            padding: 10px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
+            display: none; background: #4f46e5; color: white;
+            padding: 15px; text-align: center; font-size: 32px;
+            font-weight: bold; position: absolute; top: 0; width: 100%; z-index: 100;
         }
     </style>
 </head>
@@ -154,43 +115,42 @@ let scrollInterval;
 let isTransitioning = false;
 let isPodcastPlaying = false;
 
-window.onload = () => {
-    loadExcel();
-    // Start the clock to check for podcast time
-    setInterval(checkPodcastSchedule, 30000); 
-};
+window.onload = loadExcel;
 
 function checkPodcastSchedule() {
     const now = new Date();
     const hour = now.getHours();
     const min = now.getMinutes();
     
-    // Check if time is between 09:30 and 10:00
-    const isTimeForPodcast = (hour === 8 && min >= 30) && (hour < 10);
-
-    if (isTimeForPodcast && !isPodcastPlaying) {
-        startPodcast();
-    } else if (!isTimeForPodcast && isPodcastPlaying) {
-        stopPodcast();
-    }
+    // Returns true if between 09:30 and 10:00
+    return (hour === 9 && min >= 30) && (hour < 10);
 }
 
 function startPodcast() {
     isPodcastPlaying = true;
     document.getElementById('podcast-status').style.display = 'block';
-    
-    // Inject the iframe to start the audio
     const container = document.getElementById('podcast-container');
     container.innerHTML = `<iframe src="${PODCAST_URL}" allow="autoplay" style="width:0;height:0;border:0;"></iframe>`;
     
-    console.log("Podcast started.");
+    // We stop the dashboard rotation by simply not calling loadExcel() 
+    // and wait for the next "manual" check. 
+    // Since this is inside nextSlide, it will stay here until we refresh.
+    console.log("Dashboard paused for Podcast.");
+    
+    // Re-check every 1 minute to see if podcast time is over
+    let waitInterval = setInterval(() => {
+        if (!checkPodcastSchedule()) {
+            clearInterval(waitInterval);
+            stopPodcast();
+        }
+    }, 60000);
 }
 
 function stopPodcast() {
     isPodcastPlaying = false;
     document.getElementById('podcast-status').style.display = 'none';
     document.getElementById('podcast-container').innerHTML = '';
-    console.log("Podcast stopped.");
+    loadExcel(); // Resume the dashboard
 }
 
 async function loadExcel() {
@@ -233,9 +193,7 @@ function buildDisplayList() {
             newDisplays.push({ type: "sheet", name: name, isConventional: true, isScroller: false });
         }
     });
-    newDisplays.push({ type: "image" });      
-    newDisplays.push({ type: "imageEt" }); 
-    newDisplays.push({ type: "notification" });
+    newDisplays.push({ type: "image" }, { type: "imageEt" }, { type: "notification" });
     displays = newDisplays;
 }
 
@@ -254,16 +212,12 @@ function showSheet(displayObj) {
     document.body.classList.remove("fullscreen-mode");
     const sheet = workbook.Sheets[displayObj.name];
     let allRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-    let pageSuffix = displayObj.totalPages > 1 ? ` (${displayObj.currentPage}/${displayObj.totalPages})` : "";
-    document.getElementById("title").innerText = displayObj.name + pageSuffix;
+    document.getElementById("title").innerText = displayObj.name + (displayObj.totalPages > 1 ? ` (${displayObj.currentPage}/${displayObj.totalPages})` : "");
     const headers = Object.keys(allRows[0] || {});
     let html = "<table>";
-
     if (displayObj.isConventional) {
         html += "<tr>" + headers.map(h => `<th>${h}</th>`).join("") + "</tr>";
-        allRows.forEach(row => {
-            html += "<tr>" + headers.map(h => `<td>${row[h]}</td>`).join("") + "</tr>";
-        });
+        allRows.forEach(row => { html += "<tr>" + headers.map(h => `<td>${row[h]}</td>`).join("") + "</tr>"; });
     } else {
         const modelCol = detectColumn(headers, ["model", "type", "engine"]) || headers[0];
         const snCol = detectColumn(headers, ["sn", "serial", "esn"]) || headers[1];
@@ -276,10 +230,7 @@ function showSheet(displayObj) {
             if (displayObj.models.includes(model)) {
                 const status = statusCol ? String(r[statusCol]) : "";
                 if (status.toLowerCase() === "complete") return;
-                peopleMap[model].push({
-                    text: `<b>${r[snCol] || ""}</b><br>${r[engineerCol] || ""}<br><small>${status}</small>`,
-                    status: status
-                });
+                peopleMap[model].push({ text: `<b>${r[snCol] || ""}</b><br>${r[engineerCol] || ""}<br><small>${status}</small>`, status: status });
             }
         });
         html += "<tr>" + displayObj.models.map(m => `<th>${m}</th>`).join("") + "</tr>";
@@ -288,15 +239,13 @@ function showSheet(displayObj) {
             html += "<tr>";
             displayObj.models.forEach(m => {
                 const item = peopleMap[m][i];
-                const cls = item ? getStatusClass(item.status) : "";
-                html += `<td class="${cls}">${item ? item.text : ""}</td>`;
+                html += `<td class="${item ? getStatusClass(item.status) : ""}">${item ? item.text : ""}</td>`;
             });
             html += "</tr>";
         }
     }
-    html += "</table>";
     const container = document.getElementById("scroll-container");
-    container.innerHTML = html;
+    container.innerHTML = html + "</table>";
     if (displayObj.isScroller) initAutoScroll(container);
 }
 
@@ -304,31 +253,25 @@ function initAutoScroll(container) {
     if (scrollInterval) clearInterval(scrollInterval);
     container.scrollTop = 0;
     let direction = 1; let hasReachedBottom = false; let isPaused = true; 
-    setTimeout(() => { isPaused = false; }, EDGE_PAUSE_MS);
+    setTimeout(() => isPaused = false, EDGE_PAUSE_MS);
     scrollInterval = setInterval(() => {
         if (isPaused) return;
         const maxScroll = container.scrollHeight - container.clientHeight;
-        if (maxScroll <= 15) {
-            clearInterval(scrollInterval);
-            setTimeout(nextSlide, EDGE_PAUSE_MS);
-            return;
-        }
+        if (maxScroll <= 15) { clearInterval(scrollInterval); setTimeout(nextSlide, EDGE_PAUSE_MS); return; }
         container.scrollTop += (SCROLL_SPEED * direction);
         if (direction === 1 && container.scrollTop >= maxScroll - 1) {
             isPaused = true; direction = -1; hasReachedBottom = true;
-            setTimeout(() => { isPaused = false; }, EDGE_PAUSE_MS);
+            setTimeout(() => isPaused = false, EDGE_PAUSE_MS);
         }
         if (hasReachedBottom && direction === -1 && container.scrollTop <= 0) {
-            isPaused = true; clearInterval(scrollInterval);
-            setTimeout(nextSlide, EDGE_PAUSE_MS);
+            isPaused = true; clearInterval(scrollInterval); setTimeout(nextSlide, EDGE_PAUSE_MS);
         }
     }, 30);
 }
 
 function showImageEt() {
     document.body.classList.add("fullscreen-mode");
-    const imgPath = IMAGE_LIST_2[currentEtImageIndex];
-    document.getElementById("scroll-container").innerHTML = `<div class="img-et-container"><img src="${imgPath}"></div>`;
+    document.getElementById("scroll-container").innerHTML = `<div class="img-et-container"><img src="${IMAGE_LIST_2[currentEtImageIndex]}"></div>`;
     currentEtImageIndex = (currentEtImageIndex + 1) % IMAGE_LIST_2.length;
     rotationTimeout = setTimeout(nextSlide, ET_IMAGE_TIME);
 }
@@ -336,24 +279,14 @@ function showImageEt() {
 function showImage() {
     document.body.classList.remove("fullscreen-mode");
     document.getElementById("title").innerText = "Maintenance Service Letters";
-    document.getElementById("scroll-container").innerHTML = `
-        <div style="display:flex; height:100%; justify-content:center; align-items:center; gap:20px;">
-            <img src="${IMAGE_LIST[0]}" style="max-height:95%; border-radius:10px;">
-            <img src="${IMAGE_LIST[1]}" style="max-height:95%; border-radius:10px;">
-        </div>`;
+    document.getElementById("scroll-container").innerHTML = `<div style="display:flex; height:100%; justify-content:center; align-items:center; gap:20px;"><img src="${IMAGE_LIST[0]}" style="max-height:95%; border-radius:10px;"><img src="${IMAGE_LIST[1]}" style="max-height:95%; border-radius:10px;"></div>`;
     rotationTimeout = setTimeout(nextSlide, OTHER_DISPLAY_TIME);
 }
 
 function showNotification() {
     document.body.classList.remove("fullscreen-mode");
     document.getElementById("title").innerText = "Notifications";
-    document.getElementById("scroll-container").innerHTML = `
-        <div style="height:100%; display:flex; justify-content:center; align-items:center; font-size:50px;">
-            <ul style="list-style:none;padding:0;text-align:center;">
-                <li><h1>📢 Update Status Regularly</h1></li>
-                <li><h1>📢 Crew meeting at 4 PM</h1></li>
-            </ul>
-        </div>`;
+    document.getElementById("scroll-container").innerHTML = `<div style="height:100%; display:flex; justify-content:center; align-items:center; font-size:50px;"><ul style="list-style:none;padding:0;text-align:center;"><li><h1>📢 Update Status Regularly</h1></li><li><h1>📢 Crew meeting at 4 PM</h1></li></ul></div>`;
     rotationTimeout = setTimeout(nextSlide, OTHER_DISPLAY_TIME);
 }
 
@@ -364,13 +297,9 @@ function startRotation() {
     if (d.type === "sheet") {
         showSheet(d);
         if (!d.isScroller) rotationTimeout = setTimeout(nextSlide, OTHER_DISPLAY_TIME);
-    } else if (d.type === "image") {
-        showImage();
-    } else if (d.type === "imageEt") {
-        showImageEt();
-    } else if (d.type === "notification") {
-        showNotification();
-    }
+    } else if (d.type === "image") showImage();
+    else if (d.type === "imageEt") showImageEt();
+    else if (d.type === "notification") showNotification();
 }
 
 function nextSlide() {
@@ -378,9 +307,16 @@ function nextSlide() {
     isTransitioning = true;
     if (rotationTimeout) clearTimeout(rotationTimeout);
     if (scrollInterval) clearInterval(scrollInterval);
+
     let nextIndex = currentDisplay + 1;
+    
     if (nextIndex >= displays.length) {
-        loadExcel();
+        // CHECK SCHEDULE AT THE END OF EVERY ROTATION
+        if (checkPodcastSchedule()) {
+            startPodcast();
+        } else {
+            loadExcel();
+        }
     } else {
         currentDisplay = nextIndex;
         startRotation();

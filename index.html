@@ -121,7 +121,6 @@ function checkPodcastSchedule() {
     const now = new Date();
     const hour = now.getHours();
     const min = now.getMinutes();
-    
     // Returns true if between 09:30 and 10:00
     return (hour === 8 && min >= 30) && (hour < 10);
 }
@@ -132,28 +131,31 @@ function startPodcast() {
     const container = document.getElementById('podcast-container');
     container.innerHTML = `<iframe src="${PODCAST_URL}" allow="autoplay" style="width:0;height:0;border:0;"></iframe>`;
     
-    // We stop the dashboard rotation by simply not calling loadExcel() 
-    // and wait for the next "manual" check. 
-    // Since this is inside nextSlide, it will stay here until we refresh.
     console.log("Dashboard paused for Podcast.");
     
-    // Re-check every 1 minute to see if podcast time is over
+    // Check every 30s to see if the window has ended
     let waitInterval = setInterval(() => {
         if (!checkPodcastSchedule()) {
             clearInterval(waitInterval);
             stopPodcast();
         }
-    }, 60000);
+    }, 30000);
 }
 
 function stopPodcast() {
     isPodcastPlaying = false;
     document.getElementById('podcast-status').style.display = 'none';
     document.getElementById('podcast-container').innerHTML = '';
-    loadExcel(); // Resume the dashboard
+    loadExcel(); 
 }
 
 async function loadExcel() {
+    // PRE-ROTATION CHECK: Check schedule before even loading the file
+    if (checkPodcastSchedule()) {
+        startPodcast();
+        return; // Stop here, startPodcast will call loadExcel when done
+    }
+
     try {
         const response = await fetch(`${FILE_NAME}?t=${new Date().getTime()}`);
         if (!response.ok) throw new Error("File not found");
@@ -311,12 +313,8 @@ function nextSlide() {
     let nextIndex = currentDisplay + 1;
     
     if (nextIndex >= displays.length) {
-        // CHECK SCHEDULE AT THE END OF EVERY ROTATION
-        if (checkPodcastSchedule()) {
-            startPodcast();
-        } else {
-            loadExcel();
-        }
+        // END-OF-ROTATION CHECK: Always refreshes the loop or starts podcast
+        loadExcel();
     } else {
         currentDisplay = nextIndex;
         startRotation();

@@ -76,11 +76,11 @@
         }
 
         /* Status Colors */
-        .gate-0 { background: #059669; } /* Green */
-        .gate-1 { background: #10b981; } /* Light Green */
-        .gate-2 { background: #f59e0b; } /* Orange/Amber */
-        .gate-3 { background: #ea580c; } /* Deep Orange */
-        .gate-4 { background: #dc2626; } /* Red */
+        .gate-0 { background: #059669; }
+        .gate-1 { background: #10b981; }
+        .gate-2 { background: #f59e0b; }
+        .gate-3 { background: #ea580c; }
+        .gate-4 { background: #dc2626; }
         .status-default { background: #b45309; color: white; }
 
         @keyframes kenburns {
@@ -103,9 +103,22 @@
             object-fit: contain;
             animation: kenburns 30s linear forwards;
         }
+
+        /* Podcast Banner */
+        #podcast-status {
+            display: none;
+            background: #4f46e5;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
+
+<div id="podcast-status">🎙️ PODCAST MODE ACTIVE: Pierre Clary Story</div>
 
 <div id="displaySection">
     <div class="header" id="header-container">
@@ -116,6 +129,8 @@
     </div>
 </div>
 
+<div id="podcast-container" style="display:none;"></div>
+
 <script>
 /* --- CONFIGURATION --- */
 const FILE_NAME = "assignments.xlsx"; 
@@ -124,6 +139,7 @@ const ET_IMAGE_TIME = 30000;
 const COLS_PER_PAGE = 5; 
 const SCROLL_SPEED = 3.5; 
 const EDGE_PAUSE_MS = 2000; 
+const PODCAST_URL = "https://www.safran-group.com/podcasts/amazing-story-pierre-clary-2023-12-20";
 
 const IMAGE_LIST = ["notice0.png", "notice1.png"];
 const IMAGE_LIST_2 = ["img1.jpg", "img2.jpg", "img3.jpg"];
@@ -136,8 +152,46 @@ let currentEtImageIndex = 0;
 let rotationTimeout;
 let scrollInterval;
 let isTransitioning = false;
+let isPodcastPlaying = false;
 
-window.onload = loadExcel;
+window.onload = () => {
+    loadExcel();
+    // Start the clock to check for podcast time
+    setInterval(checkPodcastSchedule, 30000); 
+};
+
+function checkPodcastSchedule() {
+    const now = new Date();
+    const hour = now.getHours();
+    const min = now.getMinutes();
+    
+    // Check if time is between 09:30 and 10:00
+    const isTimeForPodcast = (hour === 9 && min >= 30) && (hour < 10);
+
+    if (isTimeForPodcast && !isPodcastPlaying) {
+        startPodcast();
+    } else if (!isTimeForPodcast && isPodcastPlaying) {
+        stopPodcast();
+    }
+}
+
+function startPodcast() {
+    isPodcastPlaying = true;
+    document.getElementById('podcast-status').style.display = 'block';
+    
+    // Inject the iframe to start the audio
+    const container = document.getElementById('podcast-container');
+    container.innerHTML = `<iframe src="${PODCAST_URL}" allow="autoplay" style="width:0;height:0;border:0;"></iframe>`;
+    
+    console.log("Podcast started.");
+}
+
+function stopPodcast() {
+    isPodcastPlaying = false;
+    document.getElementById('podcast-status').style.display = 'none';
+    document.getElementById('podcast-container').innerHTML = '';
+    console.log("Podcast stopped.");
+}
 
 async function loadExcel() {
     try {
@@ -147,12 +201,10 @@ async function loadExcel() {
         workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
         buildDisplayList();
         
-        // After loading/re-loading, start from the beginning
         currentDisplay = 0; 
         startRotation();
     } catch (err) {
         document.getElementById("title").innerText = "File Error / Searching File...";
-        // If file fails, try again in 10 seconds
         setTimeout(loadExcel, 10000);
     }
 }
@@ -172,13 +224,9 @@ function buildDisplayList() {
             
             for (let i = 0; i < uniqueModels.length; i += COLS_PER_PAGE) {
                 newDisplays.push({ 
-                    type: "sheet", 
-                    name: name, 
-                    isConventional: false, 
-                    isScroller: true, 
+                    type: "sheet", name: name, isConventional: false, isScroller: true, 
                     models: uniqueModels.slice(i, i + COLS_PER_PAGE),
-                    currentPage: Math.floor(i / COLS_PER_PAGE) + 1,
-                    totalPages: totalPages
+                    currentPage: Math.floor(i / COLS_PER_PAGE) + 1, totalPages: totalPages
                 });
             }
         } else {
@@ -206,10 +254,8 @@ function showSheet(displayObj) {
     document.body.classList.remove("fullscreen-mode");
     const sheet = workbook.Sheets[displayObj.name];
     let allRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-    
     let pageSuffix = displayObj.totalPages > 1 ? ` (${displayObj.currentPage}/${displayObj.totalPages})` : "";
     document.getElementById("title").innerText = displayObj.name + pageSuffix;
-
     const headers = Object.keys(allRows[0] || {});
     let html = "<table>";
 
@@ -223,10 +269,8 @@ function showSheet(displayObj) {
         const snCol = detectColumn(headers, ["sn", "serial", "esn"]) || headers[1];
         const statusCol = detectColumn(headers, ["status", "state"]);
         const engineerCol = detectColumn(headers, ["assigned", "person", "engineer"]);
-
         const peopleMap = {};
         displayObj.models.forEach(m => peopleMap[m] = []);
-
         allRows.forEach(r => {
             const model = r[modelCol];
             if (displayObj.models.includes(model)) {
@@ -238,7 +282,6 @@ function showSheet(displayObj) {
                 });
             }
         });
-
         html += "<tr>" + displayObj.models.map(m => `<th>${m}</th>`).join("") + "</tr>";
         const maxRows = Math.max(...displayObj.models.map(m => peopleMap[m].length), 0);
         for (let i = 0; i < maxRows; i++) {
@@ -254,7 +297,6 @@ function showSheet(displayObj) {
     html += "</table>";
     const container = document.getElementById("scroll-container");
     container.innerHTML = html;
-    
     if (displayObj.isScroller) initAutoScroll(container);
 }
 
@@ -263,7 +305,6 @@ function initAutoScroll(container) {
     container.scrollTop = 0;
     let direction = 1; let hasReachedBottom = false; let isPaused = true; 
     setTimeout(() => { isPaused = false; }, EDGE_PAUSE_MS);
-
     scrollInterval = setInterval(() => {
         if (isPaused) return;
         const maxScroll = container.scrollHeight - container.clientHeight;
@@ -288,7 +329,6 @@ function showImageEt() {
     document.body.classList.add("fullscreen-mode");
     const imgPath = IMAGE_LIST_2[currentEtImageIndex];
     document.getElementById("scroll-container").innerHTML = `<div class="img-et-container"><img src="${imgPath}"></div>`;
-
     currentEtImageIndex = (currentEtImageIndex + 1) % IMAGE_LIST_2.length;
     rotationTimeout = setTimeout(nextSlide, ET_IMAGE_TIME);
 }
@@ -321,7 +361,6 @@ function startRotation() {
     isTransitioning = false;
     const d = displays[currentDisplay];
     if (!d) return;
-
     if (d.type === "sheet") {
         showSheet(d);
         if (!d.isScroller) rotationTimeout = setTimeout(nextSlide, OTHER_DISPLAY_TIME);
@@ -339,12 +378,8 @@ function nextSlide() {
     isTransitioning = true;
     if (rotationTimeout) clearTimeout(rotationTimeout);
     if (scrollInterval) clearInterval(scrollInterval);
-
     let nextIndex = currentDisplay + 1;
-    
-    // Check if we have finished all slides
     if (nextIndex >= displays.length) {
-        // RESET: Load Excel fresh before starting the next loop
         loadExcel();
     } else {
         currentDisplay = nextIndex;
@@ -362,5 +397,3 @@ function detectColumn(headers, options) {
 </script>
 </body>
 </html>
-
-

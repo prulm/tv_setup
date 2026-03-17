@@ -166,7 +166,7 @@ function checkPodcastSchedule() {
     const min = now.getMinutes();
     
     // Check if time is between 09:30 and 10:00
-    const isTimeForPodcast = (hour === 9 && min >= 30) && (hour < 10);
+    const isTimeForPodcast = (hour === 8 && min >= 30) && (hour < 10);
 
     if (isTimeForPodcast && !isPodcastPlaying) {
         startPodcast();
